@@ -45,6 +45,10 @@ fn BorrowMut(comptime T: type, comptime borrowmuts: *usize) type {
     };
 }
 
+/// A borrowable memory location.
+/// Borrows are checked at compiletime. It works just like
+/// a read-write lock; There may be many borrows at a time,
+/// *or* only one mutable borrow at a time.
 pub fn RefCell(comptime T: type) type {
     comptime var borrows: usize = 0;
     comptime var mutborrows: usize = 0;
@@ -56,6 +60,8 @@ pub fn RefCell(comptime T: type) type {
             return @This(){ .value = value };
         }
 
+        /// Borrows the value. As long as a `borrow` is alive, there may not be
+        /// any mutable borrow alive. Borrows can be released by calling `.release()`.
         pub fn borrow(self: *const @This(), comptime uniq: type) Borrow(T, &borrows) {
             comptime if (mutborrows > 0)
                 @compileError("There is a mutable borrow active!");
@@ -65,13 +71,16 @@ pub fn RefCell(comptime T: type) type {
             return .{ .pointer = &self.value };
         }
 
+        /// Borrows the value mutably. As long as `mut borrow` is alive, there may not be
+        /// any other borrow or mutable borrow alive. In order words, a live mutable borrow
+        /// is a unique borrow.
         pub fn borrowMut(self: *@This(), comptime uniq: type) BorrowMut(T, &mutborrows) {
             comptime if (borrows > 0 or mutborrows > 0)
-                @compileError("There is a borrow[mut] active!");
+                @compileError("There is a borrow[mut] active!" ++ borrows);
 
             mutborrows += 1;
 
-            return .{.pointer = &self.value };
+            return .{ .pointer = &self.value };
         }
     };
 }
@@ -86,7 +95,6 @@ test "borrowck" {
     testing.expectEqual(b0.read(struct {}), 10);
     testing.expectEqual(b1.read(struct {}), 10);
 
-
     b0.release();
     // b1.read(); // <--- FAILS: read after release
     _ = b1.read(struct {});
@@ -99,7 +107,7 @@ test "borrowck" {
     bm1.write(11, struct {});
     testing.expectEqual(bm1.read(struct {}), 11);
     bm1.release();
-    // bm1.write(20); // <--- FAILS: write after release
+    // bm1.write(20, struct {}); // <--- FAILS: write after release
 }
 
 test "defer release" {
@@ -113,6 +121,7 @@ test "defer release" {
     {
         var mutborrow = cell.borrowMut(struct {});
         defer mutborrow.release();
+
         testing.expectEqual(mutborrow.read(struct {}), 20);
 
         mutborrow.write(0, struct {});
