@@ -49,7 +49,7 @@ fn BorrowMut(comptime T: type, comptime borrowmuts: *usize) type {
 /// Borrows are checked at compiletime. It works just like
 /// a read-write lock; There may be many borrows at a time,
 /// *or* only one mutable borrow at a time.
-pub fn RefCell(comptime T: type) type {
+pub fn RefCell(comptime T: type, comptime _: var) type {
     comptime var borrows: usize = 0;
     comptime var mutborrows: usize = 0;
 
@@ -63,8 +63,11 @@ pub fn RefCell(comptime T: type) type {
         /// Borrows the value. As long as a `borrow` is alive, there may not be
         /// any mutable borrow alive. Borrows can be released by calling `.release()`.
         pub fn borrow(self: *const @This(), comptime uniq: var) Borrow(T, &borrows) {
-            comptime if (mutborrows > 0)
+            comptime if (borrows > 0 and mutborrows > 0) {
+                @compileError("Value has already been unwrapped!");
+            } else if (mutborrows > 0) {
                 @compileError("There is a mutable borrow active!");
+            };
 
             borrows += 1;
 
@@ -75,20 +78,45 @@ pub fn RefCell(comptime T: type) type {
         /// any other borrow or mutable borrow alive. In order words, a live mutable borrow
         /// is a unique borrow.
         pub fn borrowMut(self: *@This(), comptime uniq: var) BorrowMut(T, &mutborrows) {
-            comptime if (borrows > 0 or mutborrows > 0)
+            comptime if (borrows > 0 and mutborrows > 0) {
+                @compileError("Value has already been unwrapped!");
+            } else if (borrows > 0 or mutborrows > 0) {
                 @compileError("There is a borrow[mut] active!");
+            };
 
             mutborrows += 1;
 
             return .{ .pointer = &self.value };
+        }
+
+        pub fn unwrap(self: *@This(), comptime uniq: var) T {
+            comptime if (borrows > 0 and mutborrows > 0) {
+                @compileError("Value has already been unwrapped!");
+            } else if (borrows > 0 or mutborrows > 0) {
+                @compileError("There is an  borrow[mut] active!");
+            };
+
+            mutborrows += 1;
+            borrows += 1;
+            return self.value;
         }
     };
 }
 
 const testing = @import("std").testing;
 
+test "unwrap" {
+    var cell = RefCell(usize, .{}).init(10);
+    var cell2 = RefCell(usize, .{}).init(10);
+
+    testing.expectEqual(cell.unwrap(.{}), cell2.unwrap(.{}));
+    //_ = cell.unwrap(.{}); // <--- FAILS: already unwrapped
+    //_ = cell.borrow(.{}); // <--- FAILS: already unwrapped
+    //_ = cell.borrowMut(.{}); // <--- FAILS: already unwrapped
+}
+
 test "borrowck" {
-    var cell = RefCell(usize).init(10);
+    var cell = RefCell(usize, .{}).init(10);
     var b0 = cell.borrow(.{});
     var b1 = cell.borrow(.{});
 
@@ -111,7 +139,7 @@ test "borrowck" {
 }
 
 test "defer release" {
-    var cell = RefCell(usize).init(20);
+    var cell = RefCell(usize, .{}).init(20);
     {
         var borrow = cell.borrow(.{});
         defer borrow.release();
