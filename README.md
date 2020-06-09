@@ -9,17 +9,19 @@ An example of what is ment by `unique type`:
 ```Zig
 var cell = RefCell(usize).init(10);
 
-var borrow = cell.borrow(struct {});
+var borrow = cell.borrow(.{});
 defer borrow.release();
 
-var value = borrow.read(struct {});
+var value = borrow.read(.{});
 ```
-Here we see `struct {}` two times. it is required to pass those in.
+Here we see `.{}` two times. it is required to pass those in.
 
 ## Minimum supported `Zig`
 `master`
 
 ## Recent changes
+  * 0.2
+    * Allow the use of `.{}` where previously `struct {}` was required.
   * 0.1
     * Initial implementation
 

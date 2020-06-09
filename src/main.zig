@@ -4,7 +4,7 @@ fn Borrow(comptime T: type, comptime borrows: *usize) type {
     return struct {
         pointer: *const T,
 
-        pub fn read(self: *const @This(), comptime uniq: type) T {
+        pub fn read(self: *const @This(), comptime uniq: var) T {
             if (!alive)
                 @compileError("Borrow no longer alive!");
 
@@ -24,14 +24,14 @@ fn BorrowMut(comptime T: type, comptime borrowmuts: *usize) type {
     return struct {
         pointer: *T,
 
-        pub fn write(self: *@This(), value: T, comptime uniq: type) void {
+        pub fn write(self: *@This(), value: T, comptime uniq: var) void {
             if (!alive)
                 @compileError("BorrowMut no longer alive!");
 
             self.pointer.* = value;
         }
 
-        pub fn read(self: *const @This(), comptime uniq: type) T {
+        pub fn read(self: *const @This(), comptime uniq: var) T {
             if (!alive)
                 @compileError("BorrowMut no longer alive!");
 
@@ -62,7 +62,7 @@ pub fn RefCell(comptime T: type) type {
 
         /// Borrows the value. As long as a `borrow` is alive, there may not be
         /// any mutable borrow alive. Borrows can be released by calling `.release()`.
-        pub fn borrow(self: *const @This(), comptime uniq: type) Borrow(T, &borrows) {
+        pub fn borrow(self: *const @This(), comptime uniq: var) Borrow(T, &borrows) {
             comptime if (mutborrows > 0)
                 @compileError("There is a mutable borrow active!");
 
@@ -74,9 +74,9 @@ pub fn RefCell(comptime T: type) type {
         /// Borrows the value mutably. As long as `mut borrow` is alive, there may not be
         /// any other borrow or mutable borrow alive. In order words, a live mutable borrow
         /// is a unique borrow.
-        pub fn borrowMut(self: *@This(), comptime uniq: type) BorrowMut(T, &mutborrows) {
+        pub fn borrowMut(self: *@This(), comptime uniq: var) BorrowMut(T, &mutborrows) {
             comptime if (borrows > 0 or mutborrows > 0)
-                @compileError("There is a borrow[mut] active!" ++ borrows);
+                @compileError("There is a borrow[mut] active!");
 
             mutborrows += 1;
 
@@ -89,42 +89,42 @@ const testing = @import("std").testing;
 
 test "borrowck" {
     var cell = RefCell(usize).init(10);
-    var b0 = cell.borrow(struct {});
-    var b1 = cell.borrow(struct {});
+    var b0 = cell.borrow(.{});
+    var b1 = cell.borrow(.{});
 
-    testing.expectEqual(b0.read(struct {}), 10);
-    testing.expectEqual(b1.read(struct {}), 10);
+    testing.expectEqual(b0.read(.{}), 10);
+    testing.expectEqual(b1.read(.{}), 10);
 
     b0.release();
-    // b1.read(); // <--- FAILS: read after release
-    _ = b1.read(struct {});
-    _ = b1.read(struct {});
+    // _ = b0.read(.{}); // <--- FAILS: read after release
+    _ = b1.read(.{});
+    _ = b1.read(.{});
     b1.release();
 
-    var bm1 = cell.borrowMut(struct {});
-    // var b2 = cell.borrow(struct {}); // <--- FAILS: borrow while mut borrow is active
-    // var bm2 = cell.borrowMut(struct {}); // <--- FAILS borrowmut while mut borrow is active
-    bm1.write(11, struct {});
-    testing.expectEqual(bm1.read(struct {}), 11);
+    var bm1 = cell.borrowMut(.{});
+    // var b2 = cell.borrow(.{}); // <--- FAILS: borrow while mut borrow is active
+    // var bm2 = cell.borrowMut(.{}); // <--- FAILS borrowmut while mut borrow is active
+    bm1.write(11, .{});
+    testing.expectEqual(bm1.read(.{}), 11);
     bm1.release();
-    // bm1.write(20, struct {}); // <--- FAILS: write after release
+    // bm1.write(20, .{}); // <--- FAILS: write after release
 }
 
 test "defer release" {
     var cell = RefCell(usize).init(20);
     {
-        var borrow = cell.borrow(struct {});
+        var borrow = cell.borrow(.{});
         defer borrow.release();
 
-        testing.expectEqual(borrow.read(struct {}), 20);
+        testing.expectEqual(borrow.read(.{}), 20);
     }
     {
-        var mutborrow = cell.borrowMut(struct {});
+        var mutborrow = cell.borrowMut(.{});
         defer mutborrow.release();
 
-        testing.expectEqual(mutborrow.read(struct {}), 20);
+        testing.expectEqual(mutborrow.read(.{}), 20);
 
-        mutborrow.write(0, struct {});
-        testing.expectEqual(mutborrow.read(struct {}), 0);
+        mutborrow.write(0, .{});
+        testing.expectEqual(mutborrow.read(.{}), 0);
     }
 }
