@@ -20,6 +20,8 @@ Here we see `.{}` two times. it is required to pass those in.
 `master`
 
 ## Recent changes
+  * 0.2.1
+    * Change all occurrences of `var` as argument type to `anytype`.
   * 0.2
     * Allow the use of `.{}` where previously `struct {}` was required.
   * 0.1
