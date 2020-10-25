@@ -106,53 +106,53 @@ pub fn RefCell(comptime T: type, comptime _: anytype) type {
 const testing = @import("std").testing;
 
 test "unwrap" {
-    var cell = RefCell(usize, .{}).init(10);
-    var cell2 = RefCell(usize, .{}).init(10);
+    var cell = RefCell(usize, opaque {}).init(10);
+    var cell2 = RefCell(usize, opaque {}).init(10);
 
-    testing.expectEqual(cell.unwrap(.{}), cell2.unwrap(.{}));
-    //_ = cell.unwrap(.{}); // <--- FAILS: already unwrapped
-    //_ = cell.borrow(.{}); // <--- FAILS: already unwrapped
-    //_ = cell.borrowMut(.{}); // <--- FAILS: already unwrapped
+    testing.expectEqual(cell.unwrap(opaque {}), cell2.unwrap(opaque {}));
+    //_ = cell.unwrap(opaque {}); // <--- FAILS: already unwrapped
+    //_ = cell.borrow(opaque {}); // <--- FAILS: already unwrapped
+    //_ = cell.borrowMut(opaque {}); // <--- FAILS: already unwrapped
 }
 
 test "borrowck" {
-    var cell = RefCell(usize, .{}).init(10);
-    var b0 = cell.borrow(.{});
-    var b1 = cell.borrow(.{});
+    var cell = RefCell(usize, opaque {}).init(10);
+    var b0 = cell.borrow(opaque {});
+    var b1 = cell.borrow(opaque {});
 
-    testing.expectEqual(b0.read(.{}), 10);
-    testing.expectEqual(b1.read(.{}), 10);
+    testing.expectEqual(b0.read(opaque {}), 10);
+    testing.expectEqual(b1.read(opaque {}), 10);
 
     b0.release();
-    // _ = b0.read(.{}); // <--- FAILS: read after release
-    _ = b1.read(.{});
-    _ = b1.read(.{});
+    // _ = b0.read(opaque {}); // <--- FAILS: read after release
+    _ = b1.read(opaque {});
+    _ = b1.read(opaque {});
     b1.release();
 
-    var bm1 = cell.borrowMut(.{});
-    // var b2 = cell.borrow(.{}); // <--- FAILS: borrow while mut borrow is active
-    // var bm2 = cell.borrowMut(.{}); // <--- FAILS borrowmut while mut borrow is active
-    bm1.write(11, .{});
-    testing.expectEqual(bm1.read(.{}), 11);
+    var bm1 = cell.borrowMut(opaque {});
+    // var b2 = cell.borrow(opaque {}); // <--- FAILS: borrow while mut borrow is active
+    // var bm2 = cell.borrowMut(opaque {}); // <--- FAILS borrowmut while mut borrow is active
+    bm1.write(11, opaque {});
+    testing.expectEqual(bm1.read(opaque {}), 11);
     bm1.release();
-    // bm1.write(20, .{}); // <--- FAILS: write after release
+    // bm1.write(20, opaque {}); // <--- FAILS: write after release
 }
 
 test "defer release" {
-    var cell = RefCell(usize, .{}).init(20);
+    var cell = RefCell(usize, opaque {}).init(20);
     {
-        var borrow = cell.borrow(.{});
+        var borrow = cell.borrow(opaque {});
         defer borrow.release();
 
-        testing.expectEqual(borrow.read(.{}), 20);
+        testing.expectEqual(borrow.read(opaque {}), 20);
     }
     {
-        var mutborrow = cell.borrowMut(.{});
+        var mutborrow = cell.borrowMut(opaque {});
         defer mutborrow.release();
 
-        testing.expectEqual(mutborrow.read(.{}), 20);
+        testing.expectEqual(mutborrow.read(opaque {}), 20);
 
-        mutborrow.write(0, .{});
-        testing.expectEqual(mutborrow.read(.{}), 0);
+        mutborrow.write(0, opaque {});
+        testing.expectEqual(mutborrow.read(opaque {}), 0);
     }
 }

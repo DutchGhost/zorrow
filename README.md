@@ -7,14 +7,15 @@ of the types passed in, it's up to the programmer to do this correctly.
 An example of what is ment by `unique type`:
 
 ```Zig
-var cell = RefCell(usize).init(10);
+var cell = RefCell(usize, opaque {}).init(10);
 
-var borrow = cell.borrow(.{});
+var borrow = cell.borrow(opaque {});
 defer borrow.release();
 
-var value = borrow.read(.{});
+var value = borrow.read(opaque {});
 ```
-Here we see `.{}` two times. it is required to pass those in.
+Here we see `opaque {}` three times. it is required to pass those in, as Zorrow
+heavily relies on unique types passed into it's API.
 
 ## Minimum supported `Zig`
 `master`
@@ -28,5 +29,5 @@ Here we see `.{}` two times. it is required to pass those in.
     * Initial implementation
 
 ## Contributors
-  * [kprotty](https://github.com/kprotty)
   * [suirad](https://github.com/suirad)
+  * [kprotty](https://github.com/kprotty)
