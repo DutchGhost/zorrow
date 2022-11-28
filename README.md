@@ -31,3 +31,4 @@ heavily relies on unique types passed into it's API.
 ## Contributors
   * [suirad](https://github.com/suirad)
   * [kprotty](https://github.com/kprotty)
+  * [Kassane](https://github.com/kassane)
